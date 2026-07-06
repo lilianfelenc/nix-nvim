@@ -68,12 +68,30 @@ vim.lsp.config("lua_ls", {
   },
 })
 
+vim.lsp.config("vhdl_ls", {
+  root_dir = function(bufnr, on_dir)
+    on_dir(vim.fn.getcwd())
+  end,
+})
+
+vim.lsp.config('svlangserver', {
+  settings = {
+    systemverilog = {
+      includeIndexing = { '*.{v,vh,sv,svh}', '**/*.{v,vh,sv,svh}' },
+      launchConfiguration = "verilator -sv --lint-only -Wall",
+    }
+  }
+})
+
+vim.lsp.enable('svlangserver')
 vim.lsp.enable({
   "clangd",
   "pyright",
   "bashls",
   "yamlls",
   "lua_ls",
+  "vhdl_ls",
+  "svlangserver",
 })
 
 vim.keymap.set("n", "gd", vim.lsp.buf.definition)

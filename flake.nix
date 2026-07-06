@@ -10,6 +10,32 @@
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
 
+      svlangserver = pkgs.buildNpmPackage rec {
+        pname = "svlangserver";
+        version = "0.4.1"; # check npm for latest: npm view @imc-trading/svlangserver version
+        src = pkgs.fetchurl {
+          url = "https://registry.npmjs.org/@imc-trading/svlangserver/-/svlangserver-${version}.tgz";
+          hash = "sha256-j0gX/6y60uQMSZnqlPWYxp10isP8pykk5crfr3jmKJw="; # nix will complain and give correct hash on first build
+        };
+
+      postPatch = ''
+          cp ${./svlangserver-package-lock.json} ./package-lock.json
+        '';
+
+        # First `nix build` will fail with a hash mismatch for npmDepsHash — paste it in below.
+      npmDepsHash = "sha256-gmL6pnYxwNnVdagxIwqzBjRB5QEJ2CLf1BxcATKU7Ag=";
+      dontNpmBuild = true;
+        installPhase = ''
+          runHook preInstall
+          mkdir -p $out/lib/node_modules/${pname}
+          cp -r . $out/lib/node_modules/${pname}
+          mkdir -p $out/bin
+          chmod +x $out/lib/node_modules/${pname}/bin/main.js
+          ln -s $out/lib/node_modules/${pname}/bin/main.js $out/bin/svlangserver
+          runHook postInstall
+        '';
+      };
+
       language-server-bitbake = pkgs.buildNpmPackage rec {
         pname = "language-server-bitbake";
         version = "2.9.0";
@@ -52,7 +78,7 @@
         luasnip
 	nvim-lint
         (nvim-treesitter.withPlugins (p: [
-          p.c p.cpp p.python p.bash p.json p.yaml p.lua
+          p.c p.cpp p.python p.bash p.json p.yaml p.lua p.vhdl p.systemverilog
         ]))
         plenary-nvim     # required dependency of telescope
         telescope-nvim
@@ -71,6 +97,9 @@
         pyright
         gdb
 	oelint-adv
+	vhdl-ls
+	verilator
+        svlangserver
         lua-language-server
         bash-language-server
         yaml-language-server
