@@ -103,7 +103,6 @@
         lua-language-server
         bash-language-server
         yaml-language-server
-	bash-language-server
 	cmake-language-server
 	docker-language-server
 	systemd-language-server

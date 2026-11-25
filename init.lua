@@ -11,6 +11,8 @@ vim.opt.updatetime = 200
 vim.opt.clipboard = "unnamedplus"
 vim.opt.mouse = "a"
 vim.opt.path:append("**")
+-- :diffsplit always splits vertically
+vim.opt.diffopt:append("vertical")
 vim.cmd("colorscheme carbonfox")
 
 -- terminal escape
@@ -69,8 +71,11 @@ vim.lsp.config("lua_ls", {
 })
 
 vim.lsp.config("vhdl_ls", {
+  -- project root = dir with vhdl_ls.toml, else git root, else the file's dir
   root_dir = function(bufnr, on_dir)
-    on_dir(vim.fn.getcwd())
+    local root = vim.fs.root(bufnr, { "vhdl_ls.toml", ".vhdl_ls.toml", ".git" })
+      or vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr))
+    on_dir(root)
   end,
 })
 
@@ -83,7 +88,6 @@ vim.lsp.config('svlangserver', {
   }
 })
 
-vim.lsp.enable('svlangserver')
 vim.lsp.enable({
   "clangd",
   "pyright",
@@ -97,9 +101,9 @@ vim.lsp.enable({
 vim.keymap.set("n", "gd", vim.lsp.buf.definition)
 vim.keymap.set("n", "gr", vim.lsp.buf.references)
 vim.keymap.set("n", "K", vim.lsp.buf.hover)
-vim.keymap.set("n", "rn", vim.lsp.buf.rename)
-vim.keymap.set("n", "[d", vim.diagnostic.goto_prev)
-vim.keymap.set("n", "]d", vim.diagnostic.goto_next)
+vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename)
+vim.keymap.set("n", "[d", function() vim.diagnostic.jump({ count = -1, float = true }) end)
+vim.keymap.set("n", "]d", function() vim.diagnostic.jump({ count = 1, float = true }) end)
 
 -- =========================
 -- AUTOCOMPLETE (CMP)
@@ -127,15 +131,22 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   end,
 })
 
-vim.api.nvim_create_autocmd({ 'BufEnter', 'TermEnter', 'TermLeave' }, {
-    desc = 'cd to terminal cwd on enter',
-    pattern = 'term://*',
-    callback = function()
-        local cwd = vim.fn.resolve('/proc/' .. vim.b.terminal_job_pid .. '/cwd')
-        if vim.fn.isdirectory(cwd) == 1 then
-            vim.fn.chdir(cwd)
-        end
-    end,
+-- Keep nvim's cwd in sync with the shell running in the terminal buffer.
+-- Also runs when opening the cmdline (`:`), so `:e`, `:!`, etc. use the
+-- terminal's current directory even if the shell cd'd since the last event.
+local function sync_cwd_from_terminal()
+  if vim.bo.buftype ~= 'terminal' then return end
+  local pid = vim.b.terminal_job_pid
+  if not pid then return end
+  local cwd = vim.uv.fs_readlink('/proc/' .. pid .. '/cwd')
+  if cwd and vim.fn.isdirectory(cwd) == 1 and cwd ~= vim.fn.getcwd() then
+    vim.cmd.cd(vim.fn.fnameescape(cwd))
+  end
+end
+
+vim.api.nvim_create_autocmd({ 'BufEnter', 'BufLeave', 'WinEnter', 'TermEnter', 'TermLeave', 'CmdlineEnter' }, {
+  desc = 'cd to terminal cwd',
+  callback = sync_cwd_from_terminal,
 })
 
 vim.api.nvim_create_autocmd({ "FileType" }, {
