@@ -79,6 +79,21 @@ vim.lsp.config("vhdl_ls", {
   end,
 })
 
+-- :vhd generates vhdl_ls.toml in the cwd, then restarts vhdl_ls
+vim.api.nvim_create_user_command("Vhd", function(opts)
+  local cmd = vim.list_extend({ "vhd" }, opts.fargs)
+  local res = vim.system(cmd, { text = true, cwd = vim.fn.getcwd() }):wait()
+  local msg = vim.trim((res.stdout or "") .. "\n" .. (res.stderr or ""))
+  vim.notify(msg, res.code == 0 and vim.log.levels.INFO or vim.log.levels.ERROR)
+  if res.code ~= 0 then return end
+  -- restart so open buffers pick up the new config and project root
+  vim.lsp.enable("vhdl_ls", false)
+  vim.defer_fn(function() vim.lsp.enable("vhdl_ls") end, 500)
+end, { nargs = "*", desc = "Generate vhdl_ls.toml" })
+
+-- user commands must start uppercase, so expand a typed `:vhd` to `:Vhd`
+vim.cmd([[cnoreabbrev <expr> vhd getcmdtype() ==# ':' && getcmdline() ==# 'vhd' ? 'Vhd' : 'vhd']])
+
 vim.lsp.config('svlangserver', {
   settings = {
     systemverilog = {

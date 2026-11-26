@@ -67,6 +67,12 @@
         '';
       };
 
+      # `vhd` command: generates vhdl_ls.toml for the current directory
+      vhd = pkgs.writeScriptBin "vhd" ''
+        #!${pkgs.python3}/bin/python3
+        ${builtins.readFile ./tools/vhd.py}
+      '';
+
       plugins = with pkgs.vimPlugins; [
         localPlugins
         nightfox-nvim
@@ -98,6 +104,7 @@
         gdb
 	oelint-adv
 	vhdl-ls
+	vhd
 	verilator
         svlangserver
         lua-language-server
